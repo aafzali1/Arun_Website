@@ -154,13 +154,13 @@ disqusShortname = ""
 
     [[params.contact.phone]]
     title = "Phone"
-    phone = "(000) 000-0000 x1234"
+    phone = "(+66) 999-9996"
 
     [[params.contact.address]]
     title = "Address"
-    street = "Street"
-    city = "City, ST 00000"
-    country = "Country"
+    street = "Siphaya"
+    city = "Bangkok, 10100"
+    country = "Thailand"
 
   # Footer section
   [params.footer]
@@ -170,30 +170,11 @@ disqusShortname = ""
     # Uses font awesome icons
     [[params.footer.social]]
       icon = "fa-twitter"
-      url= "https://www.twitter.com"
+      url= "https://twitter.com/ArunAfzali"
       label = "Twitter"
 
     [[params.footer.social]]
-      icon = "fa-facebook"
-      url= "https://www.facebook.com"
-      label = "Facebook"
-
-    [[params.footer.social]]
-      icon = "fa-instagram"
-      url= "https://www.instagram.com"
-      label = "Instagram"
-    
-    [[params.footer.social]]
       icon = "fa-github"
-      url= "https://www.github.com"
-      label = "GitHub"
+      url= "https://github.com/aafzali1"
+      label = "Github"
 
-    [[params.footer.social]]
-      icon = "fa-linkedin"
-      url= "https://www.linkedin.com"
-      label = "LinkedIn"
-
-    [[params.footer.quicklinks]]
-      text = "Design: "
-      url= "https://www.html5up.net"
-      alt = "HTML5 UP"

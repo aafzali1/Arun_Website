@@ -1,7 +1,7 @@
 ---
-title: "Session 4: Homework 2"
-author: "Group A 17"
-date: "`r Sys.Date()`"
+title: "Final Group Project - AirBnB Analytics - Istanbul"
+author: "Group 17A"
+date: "18/10/2020"
 output:
   html_document:
     theme: flatly
@@ -12,1060 +12,987 @@ output:
     code_folding: show
 ---
 
+# Executive Summary
 
-```{r, setup}
-knitr::opts_chunk$set(
-  message = FALSE, 
-  warning = FALSE, 
-  tidy=FALSE,     # display code as typed
-  size="small")   # slightly smaller font for code
-options(digits = 3)
+In this report, we analyze data about AirBnB listings and fit a model to predict the total cost for 2 people staying 4 nights in an AirBnB in Istanbul. 
 
-# default figure size
-knitr::opts_chunk$set(
-  fig.width=6.75, 
-  fig.height=6.75,
-  fig.align = "center"
-)
-```
+We download AirBnB data from insideairbnb.com, which was originally scraped from airbnb.com.
+
+**Purpose:**
+1. Perform a logical exploratory data analysis;
+2. Select explanatory variables for regression purposes through plotting data;
+3. Conduct a robust regression analysis with selected variables;
+4. Figure out variables with collinearity and use shortlisted data sets for predictive and informative purposes;
+5. Based on the analysis above, predict the total cost for 2 people spending 4 nights in Istanbul.
+
+**Methodology:**
+1. Use glimpse and skim functions to inspect the data features;
+2. Take parsing exercises to make the data fit for purpose;
+3. Employ insights from data through visualizations methods.
+
+**Predictions:**
+From our regression analysis, we predict with a 95% level of confidence that the cost for 2 people of staying in an AirBnB in Istanbul for 4 nights would be approximately $821. However, we acknowledge that this is subject to the limitations of our analysis, including gaps in our data, subjectivity in selecting variables and the potentially skewing effect of the Covid-19 pandemic.
 
 
-```{r load-libraries}
-library(tidyverse)  # Load ggplot2, dplyr, and all the other tidyverse packages
+```{r, echo = FALSE}
+
+# Load all relevant packages
+
+library(tidyverse)  
+library(mosaic)
 library(ggthemes)
 library(lubridate)
+library(fivethirtyeight)
 library(here)
 library(skimr)
 library(janitor)
-library(httr)
-library(readxl)
 library(vroom)
+library(tidyquant)
+library(ggthemes)
 library(kableExtra)
+library(ggrepel)
+library(RColorBrewer)
+library(scales)
+library(gridExtra)
 library(infer)
-library(dplyr)
-library(reshape2)
-library(ggplot2)
-```
+library(ggfortify)
+library(leaflet)
+library(GGally)
+library(kableExtra)
+library(car)
+library(huxtable)
 
+# Load the AirBnB Dataset
 
-
-# Climate change and temperature anomalies 
-
-
-If we wanted to study climate change, we can find data on the *Combined Land-Surface Air and Sea-Surface Water Temperature Anomalies* in the Northern Hemisphere at [NASA's Goddard Institute for Space Studies](https://data.giss.nasa.gov/gistemp). The [tabular data of temperature anomalies can be found here](https://data.giss.nasa.gov/gistemp/tabledata_v3/NH.Ts+dSST.txt)
-
-To define temperature anomalies you need to have a reference, or base, period which NASA clearly states that it is the period between 1951-1980.
-
-Run the code below to load the file:
-
-```{r weather_data, cache=TRUE}
-
-weather <- 
-  read_csv("https://data.giss.nasa.gov/gistemp/tabledata_v3/NH.Ts+dSST.csv", 
-           skip = 1, 
-           na = "***")
+istanbul <- vroom("http://data.insideairbnb.com/turkey/marmara/istanbul/2020-06-28/data/listings.csv.gz") 
 
 ```
 
-Notice that, when using this function, we added two options: `skip` and `na`.
+# Exploratory Data Analysis
 
-1. The `skip=1` option is there as the real data table only starts in Row 2, so we need to skip one row. 
-1. `na = "***"` option informs R how missing observations in the spreadsheet are coded. When looking at the spreadsheet, you can see that missing data is coded as "***". It is best to specify this here, as otherwise some of the data is not recognized as numeric data.
+## Inspect the data
 
-Once the data is loaded, notice that there is a object titled `weather` in the `Environment` panel. If you cannot see the panel (usually on the top-right), go to `Tools` > `Global Options` > `Pane Layout` and tick the checkbox next to `Environment`. Click on the `weather` object, and the dataframe will pop up on a seperate tab. Inspect the dataframe.
+First, we take a look at the data to get a sense of the variables and the variable types that are included in the data set.
 
-For each month and year, the dataframe shows the deviation of temperature from the normal (expected). Further the dataframe is in wide format. 
+```{r}
 
-You have two objectives in this section:
+#glimpse the dataframe to get a sense of the raw data
 
-1. Select the year and the twelve month variables from the `weather` dataset. We do not need the others (J-D, D-N, DJF, etc.) for this assignment. Hint: use `select()` function.
-
-1. Convert the dataframe from wide to 'long' format. Hint: use `gather()` or `pivot_longer()` function. Name the new dataframe as `tidyweather`, name the variable containing the name of the month as `month`, and the temperature deviation values as `delta`.
-
-
-```{r tidyweather}
-
-tidyweather <- weather %>%
-  select(-"J-D",-"D-N",-"DJF",-"MAM",-"JJA",-"SON") %>%
-  pivot_longer(cols = 2:13,
-               names_to = "month",
-               values_to = "delta")
-```
-
-Inspect your dataframe. It should have three variables now, one each for 
-
-1. year, 
-1. month, and 
-1. delta, or temperature deviation.
-
-## Plotting Information
-
-Let us plot the data using a time-series scatter plot, and add a trendline. To do that, we first need to create a new variable called `date` in order to ensure that the `delta` values are plot chronologically. 
-
-
-```{r scatter_plot}
-
-tidyweather <- tidyweather %>%
-  mutate(date = ymd(paste(as.character(Year), month, "1")),
-         month = month(date, label=TRUE),
-         year = year(date))
-
-ggplot(tidyweather, aes(x=date, y = delta))+
-  geom_point()+
-  geom_smooth(color="red") +
-  theme_bw() +
-  labs (
-    title = "Weather Anomalies"
-  )
+glimpse(istanbul)
 
 ```
 
-Is the effect of increasing temperature more pronounced in some months? Use `facet_wrap()` to produce a separate scatter plot for each month, again with a smoothing line. Your chart should human-readable labels; that is, each month should be labeled "Jan", "Feb", "Mar" (full or abbreviated month names are fine), not `1`, `2`, `3`. 
+By taking a look at the raw data available on the AirBnB listings in Istanbul, we see that the dataframe is made up of 23,728 observations (rows) and 106 variables (columns). Notably, from the glimpse function above, we see that certain variables are stored with the incorrect data type, specifically we have quantitative variables (eg. price, cleaning_fee, extra_people) incorrectly stored as character variables and we will have to be converted into numeric data throughout the process. 
 
-```{r facet_wrap}
+```{r}
 
-ggplot(tidyweather, aes(x=date, y = delta))+
-  geom_point()+
-  geom_smooth(color="red") +
-  theme_bw() +
-  facet_wrap("month") +
-  labs (
-    title = "Weather Anomalies"
-  )
+#skim for further inspection of the dataframe
 
+skimr::skim(istanbul)
 
 ```
 
+Similarly, the skim function suggests the presence of duplicates and missing values, which will have to be cleaned out.
 
-It is sometimes useful to group data into different time periods to study historical data. For example, we often refer to decades such as 1970s, 1980s, 1990s etc. to refer to a period of time. NASA calculates a temperature anomaly, as difference form the base periof of 1951-1980. The code below creates a new data frame called `comparison` that groups data in five time periods: 1881-1920, 1921-1950, 1951-1980, 1981-2010 and 2011-present. 
+## Clean the data
 
-We remove data before 1800 and before using `filter`. Then, we use the `mutate` function to create a new variable `interval` which contains information on which period each observation belongs to. We can assign the different periods using `case_when()`.
+Next, to make the size of the data more managable, we exclude from the dataframe the variables we deemed as not needed or improper for the purpose of our analysis. 
 
+```{r}
 
-```{r intervals}
+# Select the relevant variables for our analyses
 
-comparison <- tidyweather %>% 
-  filter(Year>= 1881) %>%     #remove years prior to 1881
-  #create new variable 'interval', and assign values based on criteria below:
-  mutate(interval = case_when(
-    Year %in% c(1881:1920) ~ "1881-1920",
-    Year %in% c(1921:1950) ~ "1921-1950",
-    Year %in% c(1951:1980) ~ "1951-1980",
-    Year %in% c(1981:2010) ~ "1981-2010",
-    TRUE ~ "2011-present"
-  ))
-
-```
-
-Inspect the `comparison` dataframe by clicking on it in the `Environment` pane.
-
-Now that we have the `interval` variable, we can create a density plot to study the distribution of monthly deviations (`delta`), grouped by the different time periods we are interested in. Set `fill` to `interval` to group and colour the data by different time periods.
-
-```{r density_plot}
-
-ggplot(comparison, aes(x=delta, fill=interval))+
-  geom_density(alpha=0.2) +   #density plot with tranparency set to 20%
-  theme_bw() +                #theme
-  labs (
-    title = "Density Plot for Monthly Temperature Anomalies",
-    y     = "Density"         #changing y-axis label to sentence case
-  )
-
-```
-
-So far, we have been working with monthly anomalies. However, we might be interested in average annual anomalies. We can do this by using `group_by()` and `summarise()`, followed by a scatter plot to display the result. 
-
-```{r averaging}
-
-#creating yearly averages
-average_annual_anomaly <- tidyweather %>% 
-  group_by(Year) %>%   #grouping data by Year
+istanbul_listings <- istanbul %>% 
   
-  # creating summaries for mean delta 
-  # use `na.rm=TRUE` to eliminate NA (not available) values 
-  summarise(annual_average_delta = mean(delta, na.rm=TRUE)) 
+  select (id,
+          listing_url,
+          price, 
+          cleaning_fee, 
+          extra_people, 
+          property_type, 
+          room_type,
+          number_of_reviews,
+          review_scores_rating,
+          latitude,
+          longitude,
+          is_location_exact,
+          neighbourhood,
+          neighbourhood_cleansed,
+          neighbourhood_group_cleansed,
+          bathrooms,
+          bedrooms,
+          beds,
+          host_identity_verified,
+          host_is_superhost,
+          accommodates,
+          cancellation_policy,
+          minimum_nights,
+          guests_included)
 
-#plotting the data:
-ggplot(average_annual_anomaly, aes(x=Year, y= annual_average_delta))+
-  geom_point()+
-  
-  #Fit the best fit line, using LOESS method
-  geom_smooth() +
-  
-  #change to theme_bw() to have white background + black frame around plot
-  theme_bw() +
-  labs (
-    title = "Average Yearly Anomaly",
-    y     = "Average Annual Delta"
-  )                         
+# Take a look at the chosen variables to observe missing values
 
+skimr::skim(istanbul_listings)
 
 ```
 
+## Data wrangling
 
-## Confidence Interval for `delta`
+We proceed to convert the relevant data columns into numeric values.
 
-[NASA points out on their website](https://earthobservatory.nasa.gov/world-of-change/decadaltemp.php) that 
+```{r}
 
-> A one-degree global change is significant because it takes a vast amount of heat to warm all the oceans, atmosphere, and land by that much. In the past, a one- to two-degree drop was all it took to plunge the Earth into the Little Ice Age.
+#turn prices, cleaning_fee and extra people into a numeric column, and remove the '$' and ','
 
-Your task is to construct a confidence interval for the average annual delta since 2011, both using a formula and using a bootstrap simulation with the `infer` package. Recall that the dataframe `comparison` has already grouped temperature anomalies according to time intervals; we are only interested in what is happening  between 2011-present.
+istanbul_listings <- transform(
+  istanbul_listings, 
+  price=as.numeric(sub("\\$","",sub(",","", price)), na.rm=TRUE),
+  cleaning_fee=as.numeric(sub("\\$","", sub(",","", cleaning_fee)),na.rm=TRUE),
+  extra_people=as.numeric(sub("\\$","", sub(",","", extra_people)),na.rm=TRUE))
 
-```{r, calculate_CI_using_formula}
+```
 
-formula_ci <- comparison %>% 
-  filter(interval=="2011-present") %>%
-     summarise(mean=mean(delta, na.rm=TRUE), SD=sd(delta, na.rm=TRUE),count=n(),                      SE=SD/sqrt(count),lower_ci = mean - 1.96*SE, upper_ci = mean + 1.96*SE)
+Besides, we remove duplicated listings within id and missing values within price.
 
-formula_ci %>%
-  kbl(caption = 'Confidence Interval for the Annual Delta since 2011 using first principles')%>%
+```{r}
+
+istanbul_listings_cleaned <- istanbul_listings %>%
+  
+  #remove duplicate ids
+  filter(duplicated(id) == FALSE) %>%
+  
+  #remove listings with missing price
+  filter(is.na(price) == FALSE)
+  
+```
+
+Next, we clean other variables using the same way.
+
+```{r}
+
+#create a new column with NAs replaced with 0s for cleaning_fee
+
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>%
+  mutate(cleaning_fee_cleaned = case_when(is.na(cleaning_fee) ~ 0, TRUE ~ cleaning_fee))
+
+```
+
+```{r}
+
+
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>%
+  mutate(
+    neighbourhood_group_cleaned = case_when( 
+    
+      #create variable that clusters neighbourhoods for further analysis
+      neighbourhood_cleansed == "Arnavutkoy" ~ "European Side",
+      neighbourhood_cleansed == "Avcilar" ~ "European Side",
+      neighbourhood_cleansed == "Bagcilar" ~ "European Side",
+      neighbourhood_cleansed == "Bagcilar" ~ "European Side",
+      neighbourhood_cleansed == "Bahcelievler" ~ "European Side",
+      neighbourhood_cleansed == "Bakirkoy" ~ "European Side",
+      neighbourhood_cleansed == "Basaksehir" ~ "European Side",
+      neighbourhood_cleansed == "Bayrampasa" ~ "European Side",
+      neighbourhood_cleansed == "Besiktas" ~ "European Side",
+      neighbourhood_cleansed == "Beylikduzu" ~ "European Side",
+      neighbourhood_cleansed == "Beyoglu" ~ "European Side",
+      neighbourhood_cleansed == "Buyukcekmece" ~ "European Side",
+      neighbourhood_cleansed == "Catalca" ~ "European Side",
+      neighbourhood_cleansed == "Esenler" ~ "European Side",
+      neighbourhood_cleansed == "Esenyurt" ~ "European Side",
+      neighbourhood_cleansed == "Eyup" ~ "European Side",
+      neighbourhood_cleansed == "Fatih" ~ "European Side",
+      neighbourhood_cleansed == "Gaziosmanpasa" ~ "European Side",
+      neighbourhood_cleansed == "Gungoren" ~ "European Side",
+      neighbourhood_cleansed == "Kagithane" ~ "European Side",
+      neighbourhood_cleansed == "Kucukcekmece" ~ "European Side",
+      neighbourhood_cleansed == "Sariyer" ~ "European Side",
+      neighbourhood_cleansed == "Silivri" ~ "European Side",
+      neighbourhood_cleansed == "Sultangazi" ~ "European Side",
+      neighbourhood_cleansed == "Sisli" ~ "European Side",
+      neighbourhood_cleansed == "Zeytinburnu" ~ "European Side",
+      neighbourhood_cleansed == "Adalar" ~ "Asian Side",
+      neighbourhood_cleansed == "Atasehir" ~ "Asian Side",
+      neighbourhood_cleansed == "Beykoz" ~ "Asian Side",
+      neighbourhood_cleansed == "Cekmekoy" ~ "Asian Side",
+      neighbourhood_cleansed == "Kadikoy" ~ "Asian Side",
+      neighbourhood_cleansed == "Kartal" ~ "Asian Side",
+      neighbourhood_cleansed == "Maltepe" ~ "Asian Side",
+      neighbourhood_cleansed == "Pendik" ~ "Asian Side",
+      neighbourhood_cleansed == "Sancaktepe" ~ "Asian Side",
+      neighbourhood_cleansed == "Sultanbeyli" ~ "Asian Side",
+      neighbourhood_cleansed == "Sile" ~ "Asian Side",
+      neighbourhood_cleansed == "Tuzla" ~ "Asian Side",
+      neighbourhood_cleansed == "Umraniye" ~ "Asian Side",
+      neighbourhood_cleansed == "Uskudar" ~ "Asian Side"))
+
+```
+
+```{r}
+
+#create a new column with NAs replaced with 0s for extra_people
+
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>%
+  mutate(extra_people_cleaned = case_when(is.na(extra_people) ~ 0, TRUE ~ extra_people))
+
+```
+
+```{r}
+
+#adjust the property_type
+
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>%
+  mutate(prop_type_simplified = case_when(property_type %in% c("Apartment",
+                                                               "Condominium", 
+                                                               "Serviced apartment",
+                                                               "House", 
+                                                               "Hostel") 
+                                          ~ property_type, TRUE ~ "Other" ))
+
+#visualize the most common property types
+
+istanbul_listings_cleaned %>% 
+  group_by(prop_type_simplified) %>%
+  tally() %>%
+  arrange(desc(n)) %>%
+  rename("Property Type" = prop_type_simplified) %>%
+
+#format the table for HTML
+  
+kbl(caption = "Property type of Airbnb listings in Istanbul") %>%
   kable_styling()
 
 ```
 
+For the variable bedrooms, we notice the unusual value of zero, as seen from the graph below. And we proceed to remove the missing values (NAs).
 
-```{r, calculate_CI_using_bootstrap}
+```{r}
 
-# use the infer package to construct a 95% CI for delta
+#remove NAs
 
-#calculating confidence interval with bootstrapping
-bootstrap_delta <- comparison %>%
-  filter(Year>= 2011) %>%
-  specify(response=delta) %>%
-  generate(reps =1000, type ="bootstrap") %>%
-  calculate(stat ="mean")
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>%
+  filter(is.na(beds) == FALSE) %>%
+  filter(is.na(bedrooms) == FALSE)
 
-infer_ci <- bootstrap_delta %>%
-  get_confidence_interval(level=0.95,type="percentile")
+#plot histogram for price and price 4 nights
 
-infer_ci %>%
-  kbl(caption = 'Confidence Interval for the Annual Delta since 2011 using bootstrapping')%>%
+bedroom_plot <- istanbul_listings_cleaned %>%
+  group_by(bedrooms) %>%
+  tally() %>%
+  ggplot() + 
+  geom_col(aes(x = bedrooms, y = n), alpha = 0.9) + 
+  geom_hline(aes(yintercept = 0), size = 1) + 
+  labs(title = "Listings with no bedrooms in the data",
+       subtitle = "Distribution of the number of bedrooms",
+       y = 'Count',
+       x = 'Number of bedrooms') + 
+  theme_clean()
+
+bed_plot <- istanbul_listings_cleaned %>%
+  group_by(beds) %>%
+  tally() %>%
+  ggplot() + 
+  geom_col(aes(x = beds, y = n), alpha = 0.9) + 
+  geom_hline(aes(yintercept = 0), size = 1) + 
+  labs(title = "Listings with no beds in the data",
+       subtitle = "Distribution of the number of beds",
+       y = 'Count',
+       x = 'Number of beds') + 
+  theme_clean()
+
+grid.arrange(bedroom_plot, bed_plot, nrow = 2)
+
+```
+
+Next we inspect the neighborhoods and order them by number of listings. 
+
+```{r}
+
+#inspect neighborhoods and ordering them by number of listings
+
+istanbul_listings_cleaned %>% group_by(neighbourhood_group_cleaned) %>% 
+  tally() %>% 
+  arrange(desc(n)) %>% 
+  rename("Area"= neighbourhood_group_cleaned, "Total Listings" = n) %>% 
+  
+#Format the table for HTML
+  
+kbl(caption = "Concentration of Airbnb Listings in Istanbul") %>% 
   kable_styling()
 
 ```
 
-> From analysis of the sample database, we’re 95% confident that the interval (0.915, 1.02) captured the true mean value. In other words, if we make 20 repeat observations and calculate 95% confidence intervals for each observation, we can expect that around 19 of those intervals will contain the true annual delta since 2011.
+Some of the observations are also missing data points (NAs) for the variables host_is_identified and host_is_superhost, which we remove below.
 
-# General Social Survey (GSS)
+We also remove the observations which lack a data point for review_scores_rating. Whilst we are aware that this will reduce the volume of the data frame significantly (of almost 3000 observations), we want to prioritize the quality of the data over the quantity and are confident that the remaining data frame represents a sufficient sample size for a reliable analysis.
 
-The [General Social Survey (GSS)](http://www.gss.norc.org/) gathers data on American society in order to monitor and explain trends in attitudes, behaviours, and attributes. Many trends have been tracked for decades, so one can see the evolution of attitudes, etc in American Society.
+```{r}
 
-
-In this assignment we analyze data from the **2016 GSS sample data**, using it to estimate values of *population parameters* of interest about US adults. The GSS sample data file has 2867 observations of 935 variables, but we are only interested in very few of these variables and you are using a smaller file.
-
-
-```{r, read_gss_data, cache=TRUE}
-gss <- read_csv(here::here("data", "smallgss2016.csv"), 
-                na = c("", "Don't know",
-                       "No answer", "Not applicable"))
-```
-
-You will also notice that many responses should not be taken into consideration, like "No Answer", "Don't Know", "Not applicable", "Refused to Answer".
-
-We will be creating 95% confidence intervals for population parameters. The variables we have are the following:
-
-- hours and minutes spent on email weekly. The responses to these questions are recorded in the `emailhr` and `emailmin` variables. For example, if the response is 2.50 hours, this would be recorded as emailhr = 2 and emailmin = 30.
-- `snapchat`, `instagrm`, `twitter`: whether respondents used these social media in 2016
-- `sex`: Female - Male
-- `degree`: highest education level attained
-
-## Instagram and Snapchat, by sex
-
-Can we estimate the *population* proportion of Snapchat or Instagram users in 2016?
-
-1. Create a  new variable, `snap_insta` that is *Yes* if the respondent reported using any of Snapchat (`snapchat`) or Instagram (`instagrm`), and *No* if not. If the recorded value was NA for both of these questions, the value in your new variable should also be NA.
-1. Calculate the proportion of Yes’s for `snap_insta` among those who answered the question, i.e. excluding NAs.
-1. Using the CI formula for proportions, please construct 95% CIs for men and women who used either Snapchat or Instagram
-
-### New variable`snap_insta', measuring the union of snapchat and instagram users
-
-```{r, snap_insta}
-gss <- gss %>%
-    mutate(snap_insta = case_when(snapchat == "Yes"                 ~ "Yes",
-                                instagrm == "Yes"                 ~ "Yes",    
-                                snapchat == "No" & instagrm == "No"~ "No",
-                                snapchat == "NA" & instagrm == "NA" ~ "NA")
-    )
-```
-
-### Determining the proportion of Snapchat or Insta users in the sample, of those who gave definitive answers
-
-```{r, proportion_snap_insta}
-proportion_snap_insta<- gss %>% 
-  count(snap_insta) %>% 
-  pivot_wider(names_from=snap_insta , values_from=n) %>% 
-  mutate(prop_yes=Yes/(No+Yes))
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>%
   
-proportion_snap_insta %>% 
-  # Playing around with KBL package to produce a more aesthetically-pleasant table
-  kbl(col.names = c("Indefinite Responses", "Neither Snapchat nor Insta User", "Snapchat or Insta User", "Proportion of Snapchat or Insta users in sample"),
-      caption = '37.5% of the sample population use at least either Snapchat or Instagram') %>%
-  kable_styling(fixed_thead = T, full_width = F, font_size = 12)
-
-```
-
-### Constructing 95% confidence intervals for men and women who used either Snapchat or Insta
-
-```{r, snap_insta_by_sex}
-#Calculating the proportion of snapchat and insta users, grouped by sex
-gender_split <- gss %>%
-  filter(snap_insta!="NA") %>%
-  group_by(sex) %>% summarize(Total = count(sex), users = count(snap_insta == "Yes"), Proportion = round(users/Total,3))
-
-#Determining the standard error and subsequently the confidence intervals for both sexes
-library(kableExtra)
-gender_split <- gender_split %>%
-  mutate(std_error = round(sqrt(Proportion*(1-Proportion)/Total),3)) %>%
-  # 95% confidence interval calculation (z score of 2)
-  mutate(lower_level = round(Proportion - 1.96*std_error,3), 
-         upper_level = round(Proportion + 1.96*std_error,3))
-
-#Cleaning up the table
-gender_split%>%
-  rename('Sex' = 'sex',
-         'Lower CI'  = 'lower_level','Upper CI' = 'upper_level' ,
-         'Standard Error' = 'std_error',  'Number of Users' = 'users', 'Proportion of users' = 'Proportion' )%>%
-  kbl(caption = '95% confidence intervals on the proportion of Snapchat or Insta users, grouped by sex')%>%
-  kable_styling(fixed_thead = T, full_width = F, font_size = 12 )
-```
-
-## Twitter, by education level
-
-Can we estimate the *population* proportion of Twitter users by education level in 2016?. 
-
-There are 5 education levels in variable `degree` which, in ascneding order of years of education, are Lt high school, High School, Junior college, Bachelor, Graduate. 
-
-1. Turn `degree` from a character variable into a factor variable. Make sure the order is the correct one and that levels are not sorted alphabetically which is what R by default does. 
-1. Create a  new variable, `bachelor_graduate` that is *Yes* if the respondent has either a `Bachelor` or `Graduate` degree. As before, if the recorded value for either was NA, the value in your new variable should also be NA.
-1. Calculate the proportion of `bachelor_graduate` who do (Yes) and who don't (No) use twitter. 
-1. Using the CI formula for proportions, please construct two 95% CIs for `bachelor_graduate` vs whether they use (Yes) and don't (No) use twitter. 
-1. Do these two Confidence Intervals overlap?
-
-### Adjusting the variable type of `degree'
-```{r, degree_factor}
-twitter_gss<- gss %>% 
-  na.omit(degree) %>% 
-  mutate(degree = factor(degree, 
-                         levels = c("Lt high school", 
-                                    "High School", 
-                                    "Junior college", 
-                                    "Bachelor", 
-                                    "Graduate"))) %>% 
-  arrange((degree))
-```
-
-### Creating a new variable `bachelor_graduate' that distinguishes between pre and post bachelor degrees
-```{r, bachelor_graduate}
-twitter_gss <- twitter_gss %>% 
-  mutate(bachelor_graduate = case_when(
-    degree == "Bachelor" |  degree == "Graduate" ~ "Yes", 
-    degree == "Lt high school" | degree == "High School" | degree == "Junior college" ~ "No"
-    ))
-```
-
-### Calculating the proportion of `bachelor_graduate`s that use twitter
-```{r, twitter_users}
-proportion_twitter<- twitter_gss %>% 
-  filter(bachelor_graduate == "Yes") %>%
-  count(twitter) %>% 
-  pivot_wider(names_from=twitter , values_from=n) %>% 
-  mutate(prop_yes=Yes/(No+Yes))
-
-proportion_twitter %>% 
-  # Playing around with KBL package to produce a more aesthetically-pleasant table
-  kbl(col.names = c("Indefinite Responses", "Do not use Twitter", "Twitter User", "Proportion of Twitter users in sample of Bachelor Grads"),
-      caption = '23.3% of bachelor grads from the sample population use twitter') %>%
-  kable_styling(fixed_thead = T, full_width = F, font_size = 12, )
-```
-
-### Constructing 95% confidence intervals for bachelor grads who use and don't use twitter (excluding NAs)
-```{r, twitter_prop}
-#Calculating the proportion of snapchat and insta users, grouped by sex
-bachelor_prop <- twitter_gss %>%
-  filter(bachelor_graduate =="Yes") %>%
-  filter(twitter!="NA") %>%
-  group_by(twitter) %>%
-  summarise(count = n()) %>% 
-  mutate(Proportion = count/sum(count))
-
-#Determining the standard error and subsequently the confidence intervals for both sexes
-library(kableExtra)
-bachelor_prop <- bachelor_prop %>%
-  mutate(std_error = round(sqrt(Proportion*(1-Proportion)/count),3)) %>%
-  # 95% confidence interval calculation (z score of 2)
-  mutate(lower_level = round(Proportion - 1.96*std_error,3), 
-         upper_level = round(Proportion + 1.96*std_error,3))
-
-
-#Cleaning up the table
-bachelor_prop %>%
-    # Playing around with KBL package to produce a more aesthetically-pleasant table
-  kbl(col.names = c("Twitter User?", "Total in Sample","Proportion of Bachelor Grads","Standard Error", "Lower CI","Upper CI"),
-      caption = '95% confidence intervals on the proportion of bachelor grads, grouped by their twitter use')%>%
-  kable_styling(fixed_thead = T, full_width = F, font_size = 12 )
-```
-
-These confidence intervals do not overlap.
-
-## Email usage
-
-Can we estimate the *population* parameter on time spent on email weekly?
-
-1. Create a new variable called `email` that combines `emailhr` and `emailmin` to reports the number of minutes the respondents spend on email weekly.
-1. Visualise the distribution of this new variable. Find the mean and the median number of minutes respondents spend on email weekly. Is the mean or the median a better measure of the typical amoung of time Americans spend on email weekly? Why?
-1. Using the `infer` package, calculate a 95% bootstrap confidence interval for the mean amount of time Americans spend on email weekly. Interpret this interval in context of the data, reporting its endpoints in “humanized” units (e.g. instead of 108 minutes, report 1 hr and 8 minutes). If you get a result that seems a bit odd, discuss why you think this might be the case.
-1. Would you expect a 99% confidence interval to be wider or narrower than the interval you calculated above? Explain your reasoning.
-
-
-### Combining emailhr and emailmin into a new variable `email'
-
-```{r, email_combo, cache=TRUE}
-
-email <- gss %>%
-  mutate_at(vars(emailhr,emailmin), funs(as.numeric)) %>% 
-  mutate(email=emailmin*(emailhr*60)) %>% 
-  arrange(desc(email))
-
-email
-
-```
-
-
-### Finding the mean and median number of minutes respondents spend on email weekly and visualising the distribution of `email'
-
-```{r, email_dist, cache=TRUE}
-
-email_summary <- email %>%
-   na.omit(email) %>%
-  summarize(mean = mean(email), median = median(email)) 
-
-email_summary
-
-ggplot(email, aes(y=email)) +
-  geom_boxplot()+
-  scale_y_log10() +
-  theme_clean() +
-  labs(title="Boxplot showing how long US Adults spend emailing per week!",
-       y="Email Minutes"
-       )
-
-```
-
-
-Typically, the mean is a better measure when the distribution is roughly normal. However, if the curve is more flat and/or skewed, as is the case here,  the median is the best gauge of the typical amounnt of time Americans spend on email weekly
-
-### Calculating a 95% bootstrap confidence interval for the mean amount of time Americans spend on email weekly
-
-```{r, email_bootstrap, cache=TRUE}
-
-ci_bootstrap_email <- email %>% 
-  specify(response = email) %>% 
-  generate(reps = 100, type="bootstrap") %>% 
-  calculate(stat = "mean") %>% 
-  get_confidence_interval(level = 0.95, type = "percentile") %>% 
-  mutate(lower_ci = lower_ci/60, upper_ci = upper_ci/60)
-
-ci_bootstrap_email %>%
-    # Playing around with KBL package to produce a more aesthetically-pleasant table
-  kbl(col.names = c("Lower CI","Upper CI"),
-      caption = '95% bootstap confidence intervals for the mean amount of time Americans spend emailing weekly')%>%
-  kable_styling(fixed_thead = T, full_width = F, font_size = 12 )
-
-```
-
-### Interpreting this interval in context of the data, reporting its endpoints in “humanized” units
-
-We found the confidence interval for the mean email usage in the sample to be from 6h24m to 7h28m. Given that the sample mean is 6h57m, we this result does not seem odd and fits the narrative of a confidence interval.
-
-### Would you expect a 99% confidence interval to be wider or narrower than the interval you calculated above? Explain your reasoning.
-
-As we know with confidence intervals, if we increasing our confidence, we also increase the corresponding margin of error, which results in a wider interval. Therefore, if we increase the confidence level to 99%, then we expect the range to compensate by becoming wider. 
-
-
-# Trump's Approval Margins
-
-As we saw in class, fivethirtyeight.com has detailed data on [all polls that track the president's approval ](https://projects.fivethirtyeight.com/trump-approval-ratings)
-
-```{r, cache=TRUE}
-
-# Import approval polls data
-approval_polllist <- read_csv(here::here('data', 'approval_polllist.csv'))
-
-# Take a look at data
-glimpse(approval_polllist)
-
-# Use `lubridate` to fix dates, as they are given as characters
-approval_polllist_cleaned <- approval_polllist %>% 
-  mutate(modeldate = mdy(modeldate), startdate = mdy(startdate), enddate = mdy(enddate), createddate = mdy(createddate), timestamp = parse_date_time(timestamp, orders = "hmsdmy"))
-
-# Take a look at cleaned data 
-glimpse(approval_polllist_cleaned)
-
-```
-
-## Create a plot
-
-We calculate the average net approval rate for each week to see how public opinion has evolved over his presidency. 
-
-```{r}
-
-alpha <- 0.05
-
-approval_pollist_summary <- approval_polllist_cleaned %>% 
-  #Keep only voters as the subgroup
-  filter(subgroup=="Voters") %>% 
-  mutate(week = week(enddate), year = year(enddate)) %>% 
-  mutate(avg_net_approval = adjusted_approve - adjusted_disapprove, year = year(enddate)) %>% 
-  group_by(week, year) %>% 
-  #Calculate average net rate on a weekly basis 
-  #Definine confidence intervals
-  summarise(year = year, week = week, mean_approval = mean(avg_net_approval), lower = mean(avg_net_approval) - qt(1- alpha/2, (n() - 1))*sd(avg_net_approval)/sqrt(n()), upper = mean(avg_net_approval) + qt(1- alpha/2, (n() - 1))*sd(avg_net_approval)/sqrt(n())) %>% 
-  unique(by = c("week", "year")) %>% 
-  arrange(year, week)
-
-#Plot the data
-trump_plot <- ggplot(approval_pollist_summary, aes(x=week,y=mean_approval, color = as.factor(year))) + 
-  geom_line() + 
-  facet_wrap(~year) + 
-  geom_point() + 
-  geom_hline(yintercept=0, color = "gold") +
-  geom_ribbon(aes(ymin=lower, ymax=upper), linetype=1, alpha=0.1) +
-  labs(title = "Estimating Net Approval (approve-disapprove) for Donald Trump", subtitle = "Weekly average of all polls", y = "Average Net Approval (%)", x = "Week of the year") + 
-  theme_bw() +
-  theme(legend.position="none") +
-  scale_color_manual(values = c("#FF736C","#7DAE00","#00BBBD","#C47EFF")) + 
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1, decimal.mark = '.'), breaks = c(7.5, 5, 2.5,0.0,-2.5, -5.0, -7.5, -10.0, -12.5, -15.0, -17.5, -20.0)) + 
-  scale_x_continuous(breaks = c(0, 13, 26, 39, 52))
-
-trump_plot
-
-```
-
-## Compare Confidence Intervals
-
-We compare the confidence intervals for `week 15` (6-12 April 2020) and `week 34` (17-23 August 2020). 
-
-```{r}
-
-#print a table of related variables for further comparison
-average_per_week_15_34 <- approval_pollist_summary %>% 
-  filter(year == 2020, week %in% c(15,34)) %>% 
-  mutate(upper_minus_lower = upper - lower) 
-
-average_per_week_15_34 %>% 
-  kbl(col.names = c("Week", "Year","Mean Approval","Lower CI","Upper CI", "Difference between CIs"),caption = 'While the mean approval is decreasing, the 95% confidence interval is growing')%>%
-  kable_styling(fixed_thead = T, full_width = F, font_size = 12)
-
-```
-
-When looking at the interval from week 15 (6-12 April 2020) to week 34 (17-23 August 2020) we can see that while the average net approval is decreasing, the 95% confidence interval is growing. The observed decline in average net approval is to be expected, as Trump’s handling of the Covid-19 pandemic has been sloppy and the U.S. becomes one of the most severe outbreaks of the virus, given poorly enforced and coordinated federal measures and weak norm compliance. The increase in the confidence interval could be due to the uncertain times right now, leading people to be more undecided and unsure about their vote.
-
-
-
-# Gapminder revisited
-
-We already analyzed the `gapminder` data frame from the gapminder package. That data frame contains just six columns from the larger [data in Gapminder World](https://www.gapminder.org/data/). In this part, we will join a few dataframes with more data than the 'gapminder' package. Specifically, we will look at data on 
-
-- Life expectancy at birth (life_expectancy_years.csv)
-- GDP per capita in constant 2010 US$ (https://data.worldbank.org/indicator/NY.GDP.PCAP.KD)
-- Female fertility: The number of babies per woman (https://data.worldbank.org/indicator/SP.DYN.TFRT.IN)
-- Primary school enrollment as % of children attending primary school (https://data.worldbank.org/indicator/SE.PRM.NENR)
-- Mortality rate, for under 5, per 1000 live births (https://data.worldbank.org/indicator/SH.DYN.MORT)
-- HIV prevalence (adults_with_hiv_percent_age_15_49.csv): The estimated number of people living with HIV per 100 population of age group 15-49.
-
-To derive our data, we must use the `wbstats` package to download data from the World Bank. The relevant World Bank indicators are `SP.DYN.TFRT.IN`, `SE.PRM.NENR`, `NY.GDP.PCAP.KD`, and `SH.DYN.MORT`
-
-```{r, get_data, cache=TRUE}
-
-# load gapminder HIV data
-hiv <- read_csv(here::here("data","adults_with_hiv_percent_age_15_49.csv"))
-life_expectancy <- read_csv(here::here("data","life_expectancy_years.csv"))
-
-# get World bank data using wbstats
-indicators <- c("SP.DYN.TFRT.IN","SE.PRM.NENR", "SH.DYN.MORT", "NY.GDP.PCAP.KD")
-
-library(wbstats)
-
-worldbank_data <- wb_data(country="countries_only", #countries only- no aggregates like Latin America, Europe, etc.
-                          indicator = indicators, 
-                          start_date = 1960, 
-                          end_date = 2016)
-
-# get a dataframe of information regarding countries, indicators, sources, regions, indicator topics, lending types, income levels,  from the World Bank API 
-countries <-  wbstats::wb_cachelist$countries
-
-view(countries)
-view(hiv)
-view(life_expectancy)
-view(worldbank_data)
-
-```
-
-First of all, we have to tidy our data to join the 3 dataframes (life_expectancy, worldbank_data, and HIV) into one using [join operations](http://r4ds.had.co.nz/relational-data.html). Think about what type makes the most sense **and explain why you chose it**.
-
-```{r}
-tidy_hiv <- hiv %>%
-  pivot_longer(cols= 2:34, names_to = "year", values_to = "hiv_rate") %>% 
-  drop_na(hiv_rate)
-
-
-tidy_life_expectancy <- life_expectancy %>%
-  pivot_longer(cols= 2:302, names_to = "year", values_to = "life_expectancy_rate") %>% 
-  drop_na(life_expectancy_rate)
-
-
-tidy_worldbank <- worldbank_data %>% 
-  rename(
-    year = date,
-    GDP_per_capita=NY.GDP.PCAP.KD,
-    primary_school_enrollment=SE.PRM.NENR,
-    mortality_rate=SH.DYN.MORT,
-    fertility_rate=SP.DYN.TFRT.IN
-    ) %>% 
-  mutate(year = as.character(year))
-
-
-join_1<- full_join(tidy_hiv, tidy_life_expectancy, by = c('country','year'))
-join_2<- full_join(join_1, tidy_worldbank, by = c('country','year'))
-
-
-join_2
-```
-
-
-```{r}
-final_data <- left_join(join_2, countries, by = 'country')
-
-final_data
-
-  final_data_tidy <- final_data %>% 
-  drop_na()
+#remove NAs
+  filter(is.na(host_is_superhost) == FALSE) %>%
   
-  final_data_tidy
-```
+  filter(is.na(host_identity_verified) == FALSE) %>%
 
-Now that we have cleaned and joined our datasets, we can make some analyses. First of all, we will look at the relationship between HIV prevalence and life expectancy and generate a scatterplot with a smoothing line to report our results.
-
-```{r}
-ggplot(final_data_tidy, aes(x=hiv_rate, y=life_expectancy_rate)) + 
-  geom_point()+
-  geom_smooth(color = "red")+
-  geom_jitter(width = 0.1, height = 0.1) +
-  facet_wrap(~ region, scales="free") +
-  theme_bw()+
-  labs(title = "Relationship between HIV prevalence and life expectancy",
-       caption = "Source: https://www.gapminder.org/data") +
-    xlab("People with HIV per 100 of population (ages 15-49)") +
-  ylab("Life expectancy")
-```
-
-Next we will look at the relationship between fertility rates and GDP per capita and generate a scatterplot with a smoothing line to report our results. For that purpose, we define a new dataframe by dropping na entries, and calculating mean data.
-
-```{r}
-grouped_data<-final_data%>% 
-  drop_na(c('GDP_per_capita','fertility_rate'))%>%
-  group_by(region,year) %>%
-  summarize(mean_GDP=mean(GDP_per_capita),mean_fertility_rate=mean(fertility_rate))
-
-grouped_data
-```
-
-```{r}
-plot2<- ggplot(grouped_data, aes(x=mean_fertility_rate, y=mean_GDP)) + 
-  geom_point()+
-  geom_smooth(color = "red")+
- facet_wrap(~ region, scales='free') +
-   theme_bw()+
- labs(title = "Relationship between fertility rate and GDP",
-       caption = "Source: https://www.gapminder.org/data"
-       ) +
-  xlab("Mean births per woman") +
-  ylab("Mean GDP")
-
-plot2
+  filter(is.na(review_scores_rating) == FALSE)
 
 ```
 
-Next we will take a look at the regions with the most observations with missing HIV data and generate a bar chart.
+Given that we want to analyse a stay of 4 nights, we will filter out from the dataframe the listings that require a minimum of a 5 night stay.
 
 ```{r}
-na_hiv <- final_data %>% 
+
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>%
   
-  select("hiv_rate","region") %>% 
-  drop_na(region) %>% 
-  filter(is.na(hiv_rate)) %>%
-  group_by(region) %>% 
-  summarise(count =n()) %>% 
-  arrange(desc(count))
+  #remove listings that do not require more than 4 nights 
+  filter(minimum_nights < 5) 
 
-kable(na_hiv,col.names=c("Region","Number of NA entries in HIV data")) %>%
-  kable_styling(fixed_thead = T, full_width = F, font_size = 12)
+```
+
+We will also filter out data that only accommodates 1.
+
+```{r}
+
+istanbul_listings_cleaned <- istanbul_listings_cleaned %>% 
+  filter(accommodates > 1)
+
+```
+
+We update the dataframe by removing the now outdated columns, which have been cleaned above and compute accommodation cost for 4 nights for 2 people.
+
+```{r}
+
+istanbul_listings_final <- istanbul_listings_cleaned %>%
+  
+  #remove unwanted columns from the data frame 
+  select(-c(cleaning_fee, 
+            property_type, 
+            extra_people)) 
+
+  #create a new column with the price for 4 nights for 2 people per listing
+  istanbul_listings_final$price_4_nights = 
+    istanbul_listings_cleaned$price * 4 + 
+    istanbul_listings_cleaned$cleaning_fee_cleaned + 
+    istanbul_listings_cleaned$extra_people_clean
+
 ```
 
 ```{r}
 
-ggplot(na_hiv, aes(x= count, y=reorder(region, count)))+
-  geom_col()+
-  labs(x="Number of N/A entries", title="Number of missing entries for HIV rate by region", subtitle="Highest missing values for Europe & Central Asia")+
-  theme_bw()+
-  theme(axis.title=element_blank())
+#skim the updated dataframe
+
+skim(istanbul_listings_final)
 
 ```
 
-Now we will take a look at how mortality rate has changed by region.
+## Summary statistics
 
 ```{r}
-plot_mortality<-final_data %>%
-  drop_na(mortality_rate) %>%
-  group_by(region,year)%>%
-  summarize(mean_mortality_rate=mean(mortality_rate))
-plot_mortality
+
+summary(istanbul_listings_final)
+
+```
+
+From an initial overview of our summary statistics we extracted 5 main observations:
+
+1.The price has a significantly higher mean than its median (428.8 and 267.0 respectively), suggesting the presence of outliers (particularly expensive listings) pushing the mean upward.
+2.The number_of_reviews have an average of 18.87 reviews and a median of 6.00, but a maximum of 345.00, which is a surprisingly high number of reviews, likely an exception in our data, which also what pushed up the mean from the median.
+3.The maximum cleaning_fee is of $2115, which is significantly greater that the average fee of 74.52, which will increase the overall price for that listing. 
+4.Unsurprisingly, price_4_nights have a higher variation than price, as this is a combination of several charges.
+5.Comparing the 75th percentile with the maximum value for our variables we note that both beds and guests_included have an outlier. Moreover, it is unusual how guests_included go up to 16 but beds actually goes up to 61.
+
+```{r}
+
+#run favstats on some interesting variable combinations and keep the most interesting ones
+
+favstats(price ~ accommodates, data=istanbul_listings_final) 
+
+```
+
+
+```{r}
+
+favstats(price ~ neighbourhood_cleansed, data=istanbul_listings_final)
+
 ```
 
 ```{r}
-plot3<- ggplot(plot_mortality, aes(x=year, y=mean_mortality_rate, group=region)) + 
-  geom_line(xaxt='n')+
-  facet_wrap(~region,scales='free')+ 
-  theme_bw()+
-  theme(axis.text.x=element_blank())+
-  labs(title = "Change in mortality rate over time",
-       caption = "Source: https://www.gapminder.org/data") +
-  xlab("Years") +
-  ylab("Mortality rate (per 1000 live births)")
 
-plot3
+favstats(price ~ host_is_superhost, data=istanbul_listings_final)
+
 ```
 ```{r}
-mortality_rate_filtered<-final_data %>%
-select(c(country,region,year,mortality_rate)) %>%
-  pivot_wider(names_from=year,values_from=mortality_rate)%>%
-  rename(year1='1979',
-         year2='2011') %>%
-  mutate(change = ((year2-year1)/year1)*-100)%>%
-  select(c(country,change,region))%>%
-  drop_na(change)%>%
-  arrange(desc(change))
 
-best_5<- mortality_rate_filtered %>% top_n(n=-5,wt=change)
-worst_5<-mortality_rate_filtered %>% 
-  top_n(n=5,wt=change)
-  
-best_5
-worst_5
+favstats(price ~ prop_type_simplified, data=istanbul_listings_final)
+
 ```
-
-Finally, we will analyze the  relationship between primary school enrollment and fertility rate
 
 ```{r}
-plot4<- ggplot(final_data, aes(x=fertility_rate, y=primary_school_enrollment,colour=region)) +
-  geom_point()+
-geom_smooth()+
-  theme_minimal()+
-  labs(title = "Correlation between primary school enrollment and fertility rate",
-       caption = "Source: https://www.gapminder.org/data") +
-  xlab("Number of births per woman") +
-  ylab("Enrollment in primary school (%)")
 
-plot4
-```
-
-
-
-# Challenge 1: CDC COVID-19 Public Use Data
-
-Let us revisit the [CDC Covid-19 Case Surveillance Data](https://data.cdc.gov/Case-Surveillance/COVID-19-Case-Surveillance-Public-Use-Data/vbim-akqf). There are well over 3 million entries of individual, de-identified patient data. Since this is a large file, I suggest you use `vroom` to load it and you keep `cache=TRUE` in the chunk options.
-
-
-```{r, cache=TRUE}
-# URL link to CDC to download data
-url <- "https://data.cdc.gov/api/views/vbim-akqf/rows.csv?accessType=DOWNLOAD"
-
-covid_data <- vroom(url)%>%
-  clean_names()
+favstats(price ~ minimum_nights, data=istanbul_listings_final)
 
 ```
 
-Given the data we have, I would like you to produce two graphs that show death % rate:
+## Correlation Matrix
 
-1. by age group, sex, and whether the patient had co-morbidities or not
-1. by age group, sex, and whether the patient was admited to Intensive Care Unit (ICU) or not.
+From the summary and favstats investigations, we have decided to conduct further exploratory data analysis. We will first build a correlation martix to spot the relationships between the particular variables.
 
+```{r}
 
-```{r covid_challenge, out.width="100%"}
-knitr::include_graphics(here::here("images", "covid_death_rate_comorbidities.png"), error = FALSE)
-knitr::include_graphics(here::here("images", "covid_death_rate_icu.png"), error = FALSE)
-
-death_morbidity <- covid_data %>% 
-  
-#Remove "Missing" and "Unknown" values from the Death and Morbidity variables
-          filter(medcond_yn == 'Yes' | medcond_yn == 'No', death_yn == 'Yes' | death_yn == 'No', 
-                 sex == 'Male' | sex == 'Female', age_group != 'Unknown') %>%
-  
-#Select variables of interest
-          select(Age=age_group,Sex=sex,Death=death_yn,Morbidity=medcond_yn) %>% 
-  
-#Group the variables by death, age group, sex and morbidity
-          group_by(Age ,Sex, Morbidity, Death) %>% 
-          count()%>% 
-  
-#Modify dataframe
-          spread(key=Death, value=n) %>% 
-  
-#Summarise
-          summarise(death= (Yes/(Yes+No)*100),death_rate= round(death, digits = 1))
-
-death_morbidity
-
-#Labels
-morbidity_label <- list('No' = "Without comorbidities", 'Yes' = "With comorbidities", 'Female'="Female", 'Male'="Male")
-morbidity_labeller <- function(variable,value)
-    {return(morbidity_label[value])}
-  
-#Create graph  
-graph_death_morbidity <- death_morbidity %>% 
-  
-          ggplot(aes(y=death_rate, x=Age))+
-          geom_col(show.legend = FALSE, fill="#6B7CA4")+
-  
-# We want the x-axis to show the difference between man and women and y-axis to show the difference in comorbidity.
-          facet_grid(Morbidity~Sex, scales = "fixed", labeller =(morbidity_labeller))+
-  
-#Labels
-          geom_text(aes(label = death_rate, hjust = "left"), size = 2 , nudge_y = +1)+
-  
-          scale_y_continuous(labels = scales::percent_format(scale = 1))+
-          coord_flip()+
-
-          theme_bw()+ 
-  
-#Styling
-          labs(title= "Do co-morbidities have an impact on COVID mortality rate?",
-               subtitle = "Covid-19 death rate by age group, sex, and presence of Co-Morbidities",
-               y="Death Rate (%)",
-               x="Age Group",
-               caption = "Source : CDC")+
-          theme(plot.title = element_text(family = "Helvetica", face = "bold", size = (10)),
-          axis.title = element_text(family = "Helvetica", size = (8)),
-          axis.text = element_text(family = "Helvetica", size = (8))) %>% 
-  guides(fill = guide_legend(override.aes = list(size=5), order = 2))
-        
-graph_death_morbidity
-
-```
-> From this plot, we can confirm that co-morbidities do have an impact on COVID mortality rate for all age categories and sexes. For example, men over 80 years old with past medical conditions have a 67% chance of dying from COVID as opposed to 29% for men without co-morbidities. More generally, we can see that men are more fragile than women facing COVID as men with and without co-morbidities have higher death rates regarding COVID than women.
-
-
-
-```{r covid_ICU, out.width="100%"}
-death_ICU <- covid_data %>% 
-  
-#Remove "Missing" and "Unknown" values
-          filter(icu_yn == 'Yes' | icu_yn == 'No', death_yn == 'Yes' | death_yn == 'No', 
-                 sex == 'Male' | sex == 'Female', age_group != 'Unknown') %>%
-  
-#Select variables
-          select(Age=age_group,Sex=sex,Death=death_yn,ICU=icu_yn) %>% 
-  
-#Group variables
-          group_by(Age ,Sex, ICU, Death) %>% 
-          count()%>% 
-  
-#Modify dataframe
-          spread(key=Death, value=n) %>% 
-  
-#Summarise
-          summarise(death2= (Yes/(Yes+No)*100), death_rate2= round(death2, digits = 1))
-
-death_ICU
-
-#Let us add some labels to the graph. In order to add labels with the facet.grid, we need to create a function incorporating our label names. 
-icu_label <- list('No' = "Not admitted to ICU", 'Yes' = "Admitted to ICU", 'Female'="Female", 'Male'="Male")
-icu_labeller <- function(variable,value)
-    {return(icu_label[value])}
-  
-
-#Plot graph
-graph_death_icu <- death_ICU %>% 
-          ggplot(aes(y=death_rate2, x=Age))+
-  
-          geom_col(show.legend = FALSE, fill="#EF8E7B")+
-  
-          facet_grid(ICU~Sex, scales = "fixed", labeller = icu_labeller)+
-  
-#Labels
-          geom_text(aes(label = death_rate2, hjust = "left"), size = 2 , nudge_y = +1)+
-  
-          scale_y_continuous(labels = scales::percent_format(scale = 1))+
-          coord_flip()+
-  
-#Style
-          theme_bw()+ 
-  
-#Titles
-          labs(title= 
-  "Does past medical conditions really have an impact on COVID mortality rate ?",
-               subtitle = "Covid-19 Death rate by Age, Sex, and presence of Co-Morbidities\n",
-               y="Death Rate (%)",
-               x="Age Group",
-               caption = "Source : CDC")+
-          theme(plot.title = element_text(family = "Helvetica", face = "bold", size = (12)),
-          axis.title = element_text(family = "Helvetica", size = (8)),
-          axis.text = element_text(family = "Helvetica", size = (8)))
-        
-graph_death_icu
+istanbul_listings_final %>% 
+  select("price_4_nights",
+                      "review_scores_rating",
+                      "extra_people_cleaned",
+                      "guests_included",
+                      "host_is_superhost",
+                      "cancellation_policy",
+                      "accommodates") %>%
+  ggpairs() +
+  theme_minimal(base_size=6)
 
 ```
 
-> From this plot, we can infer that patients admitted to Intensive Care Units have a higher mortality rate regardess of age and sex. Similar to the previous plot, we find that men are more affected by COVID. 
+## Informative visualizations
 
+```{r}
 
-# Challenge 2: Excess rentals in TfL bike sharing
+ggplot(istanbul_listings_final,
+       aes(x=number_of_reviews)) +
+  geom_histogram(binwidth = 4) +
+  xlim(0,250) +
+  ylim(0,1000) +
+  labs(title="Most of the airbnb accomodations have up to 20 reviews", 
+       x="Number of Reviews", 
+       y="Quantity") +
+  theme_bw()
 
-Recall the TfL data on how many bikes were hired every single day. We can get the latest data by running the following
-
-```{r, get_tfl_data, cache=TRUE}
-install.packages('httr')
-library(httr)
-library(reshape2)
-url <- "https://data.london.gov.uk/download/number-bicycle-hires/ac29363e-e0cb-47cc-a97a-e216d900a6b0/tfl-daily-cycle-hires.xlsx"
-
-# Download TFL data to temporary file
-httr::GET(url, write_disk(bike.temp <- tempfile(fileext = ".xlsx")))
-
-# Use read_excel to read it as dataframe
-bike0 <- read_excel(bike.temp,
-                   sheet = "Data",
-                   range = cell_cols("A:B"))
-
-# change dates to get year, month, and week
-bike <- bike0 %>% 
-  clean_names() %>% 
-  rename (bikes_hired = number_of_bicycle_hires) %>% 
-  mutate (year = year(day),
-          month = lubridate::month(day, label = TRUE),
-          week = isoweek(day), day= lubridate::day(day)) #added day
-
-bikeday = bike %>% filter (day == 1)
-# filtering for first day of month for graphing purposes
-bikeday = bike%>% filter(day == 1)
-#for weekly no added day
-wbike <- bike0 %>% 
-  clean_names() %>% 
-  rename (bikes_hired = number_of_bicycle_hires) %>% 
-  mutate (year = year(day),month = lubridate::month(day, label = TRUE),week = isoweek(day))
-
-#adding dayweek for weekly data
-wbike$dayweek = weekdays(wbike$day)
-wbike
-#filter out before 2014 data
-bike <- bike %>% filter(year>2014)
-
-wbike = wbike %>% filter(year>2014)
 ```
 
 
+```{r}
 
-```{r tfl_absolute_monthly_change, out.width="100%"}
-knitr::include_graphics(here::here("images", "tfl_monthly.png"), error = FALSE)
+#heavily right-skewed
 
-bike1 = bike %>% filter(year<2020) %>% filter(year>2014)
+ggplot(istanbul_listings_final, 
+       aes(x=price_4_nights)) +
+  geom_density(bins=20) +
+  xlim(0,4000) +
+  labs(title="The density plot of total price for 4 nights is heavily right-skwed", 
+       x="Density",  
+       y="Total price for 4 nights") +
+  theme_bw()
 
-avgbike = bike1  %>%
-  group_by(month)%>% 
-  summarise(sum_rental = sum(bikes_hired, na.rm = TRUE),
-  avg_bikes_hired = mean(bikes_hired, na.rm = TRUE))
-
-## don't need but found median
-medbike = bike1 %>%
-  group_by(month)%>% 
-  summarise(sum_rental = sum(bikes_hired, na.rm = TRUE),
-  med_bikes_hired = median(bikes_hired, na.rm = TRUE))
-
-#combining dfs
-bikeday$variable <- rownames(bikeday)
-cbike = merge(avgbike, bikeday)
-
-#Mutating
-cbike = cbike %>% mutate(z=ifelse(avg_bikes_hired>bikes_hired, avg_bikes_hired, bikes_hired))
-
-#ggplot
-require(ggplot2)
-l = ggplot(data = cbike, aes(group = 1), color = group) + geom_line(aes(x = month, y =avg_bikes_hired), color = "blue", size = 2) + geom_line(aes(x=month, y = bikes_hired)) + geom_ribbon(aes(x = month, ymin = avg_bikes_hired, ymax = bikes_hired), fill = "magenta") 
-## Facet_Grid where blue line = Avg_bikes_hired
-r= l + facet_wrap(~year) 
-r
 ```
 
-The second one looks at percentage changes from the expected level of weekly rentals. The two grey shaded rectangles correspond to the second (weeks 14-26) and fourth (weeks 40-52) quarters.
+```{r}
 
-```{r tfl_percent_change, out.width="100%"}
-#Expected weekely Bike Rentals; Mean Bike Sales during that month in 2015-2019
-wbike
-wbike1 = wbike %>% filter(year<2020)
+#log also heavily right skewed
 
-wavgbike = wbike  %>%
-  group_by(week)%>% 
-  summarise(sum_rental = sum(bikes_hired, na.rm = TRUE),
-  avg_bikes_hired = mean(bikes_hired, na.rm = TRUE))
+ggplot(istanbul_listings_final, 
+       aes(x=price_4_nights)) +
+  geom_density(bins=20) +
+  scale_x_log10() +
+  xlim(0,2500) +
+  labs(title="Logarithmic Total Price Shows Nature of Price Clusters", 
+       x="Density",  
+       y="Total price for 4 nights")+
+  theme_bw()
+
+```
+
+```{r}
+
+#histogram to show frequency
+
+ggplot(istanbul_listings_final, 
+       aes(x=price_4_nights)) +
+  geom_histogram(bins=100) +
+  xlim(0,2500) +
+  labs(title="Most Airbnbs cost around €300 for 4 Nights", 
+       x="Total price for 4 nights", 
+       y= "Quantity") +
+  theme_bw()
+
+```
+
+```{r}
+
+istanbul_listings_final %>%
+  group_by(room_type) %>%
+  summarize(mean_price_roomtype = mean(price_4_nights)) %>%
+  arrange(desc(mean_price_roomtype)) %>%
+  ggplot(aes(y=reorder(room_type, 
+                       mean_price_roomtype), 
+             x = mean_price_roomtype)) +
+  geom_col() +
+  labs(title="What are The Most Expensive Airbnb's in Istanbul?",
+       subtitle="Hotels! who would have thought?", 
+       x="Average price for 4 nights per room",  
+       y="Room type") +
+  theme_bw()
+
+```
+```{r}
+
+#Calculate mean price for 4 nights per room type by group cleansed
+
+istanbul_listings_final %>%
+  group_by(neighbourhood_cleansed) %>%
+  summarize(mean_price_neighbourhood = mean(price_4_nights)) %>%
+  arrange(desc(mean_price_neighbourhood)) %>%
+  ggplot(aes(y=reorder(neighbourhood_cleansed, 
+                       mean_price_neighbourhood), 
+             x=mean_price_neighbourhood)) +
+    geom_col() +
+  labs(title="Average price for 4 nights per in particular neighbourhoods", 
+       x="Average price for per room",  
+       y="Neighbourhood")+
+  theme_bw()
+
+```
+
+```{r}
+
+#Calculate mean price for 4 nights by type
+
+istanbul_listings_final %>%
+  group_by(prop_type_simplified) %>%
+  summarize(mean_price_property = mean(price_4_nights)) %>%
+  arrange(desc(mean_price_property)) %>%
+  ggplot(aes(y=reorder(prop_type_simplified, 
+                       mean_price_property), 
+             x = mean_price_property)) + 
+  geom_col() +
+  labs(title="Lofts Come at a Premium in Istanbul, Houses Present a Good Value Proposition", 
+       x="Average price for per room",  
+       y="Property type") +
+  theme_bw()
+
+```
 
 
-#combining dfs
-wbike$variable <- rownames(wbike)
-wbike3 = merge(wavgbike, wbike)
+```{r}
 
-#subset by start of week
-wbike2 = subset(wbike3,dayweek == 'Monday')
-#create % change
-wbike2$percentchange <- (wbike2$bikes_hired - wbike2$avg_bikes_hired)/ wbike2$avg_bikes_hired
-wbike2 = wbike2 %>% mutate(z= ifelse(percentchange>0,percentchange,0))
-#label if positive for aesthetic reasons
-wbike2 = wbike2 %>% mutate(pos = percentchange >= 0)
+#Calculate Listing Counts for 4 nights per property type
+
+istanbul_listings_final %>%
+  group_by(prop_type_simplified) %>%
+  mutate(count_property=count("Apartment")) %>%
+  arrange((count_property)) %>%
+  ggplot(aes(x=reorder(prop_type_simplified, 
+                       desc(count_property)), 
+             y = count_property)) + 
+    geom_col() +
+  labs(title="Apartments Dominate Airbnb's Listings", 
+       x="Property type",  
+       y="Quantity") +
+  theme_bw()
+
+```
+
+```{r}
+
+#Average price per 4 nights for Airbnb
+
+istanbul_listings_final %>%
+ group_by(cancellation_policy) %>%
+  ggplot(aes(x=reorder(cancellation_policy,
+                       price_4_nights ), 
+             y = price_4_nights)) + 
+    geom_boxplot() +
+      labs(title="Average prices per 4 nights for an Airbnb according to particular cancellation policies", 
+           y="Price",  
+           x="Cancellation policy") +
+  scale_y_log10(limits=c(100,10000)) +
+  theme_bw()
+
+```
 
 
-#ggplot
-h =  ggplot(data = wbike2, aes(x = week, y = percentchange, group = 1, fill = pos), color = group) + geom_line( color = "black") + geom_hline(aes(yintercept = 0))+geom_ribbon(aes(ymin=0,ymax=percentchange), fill="red", color="red")+
-  geom_ribbon(aes(ymin=0, ymax=z), fill="palegreen", color="black") 
-  geom_hline(yintercept = 0)
+# Mapping
 
-h
-#Facet_wrap
-w= h + facet_wrap(~year)+ geom_rug()+ theme_minimal()  
+Now, we will conduct the mapping of our locations on the Istanbul map. We decide to colour our data in regards to a particular zone they are located in, to have a better sense of the density of the accommodation in these zones. The zones were grouped by highest mean rental price, since it created the largest significance in our models later on.
+
+```{r}
+
+leaflet(data = filter(istanbul_listings_final, 
+                      minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 1, 
+                   fillColor = "#e6550d", 
+                   fillOpacity = 0.9, 
+                   popup = ~listing_url,
+                   label = ~prop_type_simplified)
+
+```
+
+# Regression Analysis
+
+We begin by omitting some variables that we will not be using in our regression analysis and converting character variables to factors. 
+
+In this section, we fit linear models to predict the total cost for 2 people to stay at the AirBnB property for 4 nights, in other words, the price_4_nights variable. 
+
+In the following subsections, we investigate the significance of various predictors for predicting this variable.
+
+```{r}
+
+regression_data <- istanbul_listings_final %>% 
+  
+  #deselect variables not needed for the regression model
+  select(-c(id, 
+            listing_url, 
+            latitude, 
+            longitude, 
+            neighbourhood, 
+            price, 
+            cleaning_fee_cleaned, 
+            extra_people_cleaned)) %>%  
  
-w
+   #convert categorical variables to factors
+  transform(room_type =as.factor(room_type),
+            neighbourhood_cleansed = as.factor(neighbourhood_cleansed),
+            neighbourhood_group_cleansed = as.factor(neighbourhood_group_cleansed),
+            cancellation_policy = as.factor(cancellation_policy),
+            prop_type_simplified = as.factor(prop_type_simplified))
+
+#viewing the data frame for the regression 
+glimpse(regression_data)
+
 ```
+
+## Model 1
+
+We first fit a linear model called model1 using prop_type_simplified, number_of_reviews, and review_scores_rating and plot the output and summary statistics to evaluate the significance of these variables as predictors. The key metrics that we will be examining to evaluate the above are:
+1.R-squared adjusted: measurement of the extent of the variance of the outcome variable that is explained by the model.
+2. P Values: indicates whether the independent explanatory variable is significant to the model (when below 0.05 it can be deemed significant).
+3. T Stat: serves the same function as the P Value, suggesting whether the independent explanatory variable is significant to the model (when above 2 it can be deemed significant).
+4. Variance Inflation Factor (VIFs): enable us to check for multicollinearity in our model. Since these are not provided in the summary table for the model, we will be computing this with the vif function in the car package.
+
+```{r}
+
+#Linear regression between price_4_night and prop_type_simplified, number_of_reviews, and review_scores_rating
+
+model1<- lm(log(price_4_nights) ~ prop_type_simplified + 
+              number_of_reviews + 
+              review_scores_rating,
+            data=regression_data)
+
+#Look at model result
+
+msummary(model1)
+
 ```
 
-For both of these graphs, you have to calculate the expected number of rentals per week or month between 2015-2019 and then, see how each week/month of 2020 compares to the expected rentals. Think of the calculation `excess_rentals = actual_rentals - expected_rentals`. 
+```{r}
 
-Should you use the mean or the median to calculate your expected rentals? Why?
+#Check VIF
 
-In creating your plots, you may find these links useful:
+car::vif(model1)
 
-- https://ggplot2.tidyverse.org/reference/geom_ribbon.html
-- https://ggplot2.tidyverse.org/reference/geom_tile.html 
-- https://ggplot2.tidyverse.org/reference/geom_rug.html
+```
+
+After running model1, we can notice our dummy variable “prop_type_simplified” turned out to be insignificant for Condominium, House and Other property types. But we will keep the variable prop_type_simplified as some of it’s variables are important for our model. Our Adjusted R-squared in this model is only 1.08%. We will try to fit more variables in our model in order to increase the accuracy.
+
+We will add as well an example of interpretation of our data in logarithmic lm model.
+
+The coefficient interpretation of review_scores_rating in regards to total_price_4_days is as follows: If the review_scores_rating increases by one, the total_price_4_days increases by 0.133%.
+
+The coefficient interpretation of prop_type_simplified in regards to total_price_4_days is as follows: In regards to a particular property type the total_price_4_days behaves as follows: 
+1. - (property type: Apartment) : total_price_4_days just takes the “Intercept” variable and increases by 6.94%;
+2. - (property type: Condominium) : prop_type_simplifiedCondominium=1; total_price_4_days decreases by 0.03%; 
+3. - (property type: Hostel): prop_type_simplifiedHostel=1; total_price_4_days decreases by 0.67%;
+4. - (property type: House): prop_type_simplifiedHouse=1; total_price_4_days decreases by 0.02%;
+5. - (property type: Other): prop_type_simplifiedOther=1; total_price_4_days increases by 0.06%;
+6. - (property type: Serviced apartment): prop_type_simplifiedServiced apartment=1; total_price_4_days increases by 0.17%.
+
+## Model 2
+
+```{r}
+
+#Add room_type in to linear regression model.
+
+model2<- lm(log(price_4_nights) ~ prop_type_simplified +
+              number_of_reviews + 
+              review_scores_rating + 
+              room_type,
+            data=regression_data)
+
+#Look at model result
+
+msummary(model2)
+
+```
+
+```{r}
+
+#Check VIF
+
+car::vif(model2)
+
+```
+
+The room_type has increased our adjusted R-squared up to 21.3%. The p-value for each room type is less than 0.05, thus the room type variable is important and we will keep it in our model.
+
+## Model 3
+
+We consider whether the number bathrooms, bedrooms, beds, or size of the house (accommodates) can be significant predictors of price_4_nights.
+
+```{r}
+
+#Continually add bathrooms, beds, bedrooms and the size of the house in to linear regression model
+
+model3 <-lm(log(price_4_nights)~prop_type_simplified +
+              number_of_reviews +
+              room_type +
+              bathrooms +
+              bedrooms +
+              beds +
+              accommodates, 
+            data=regression_data)
+
+#Look at model result
+
+msummary(model3)
+
+```
+
+```{r}
+
+#Check VIF
+
+car::vif(model3)
+
+```
+
+All the variables in our model apart from “beds” variable are significant as p-value of these variables is less than 0.05. In our further models we will keep “bedrooms”, “bathrooms” and “accommodates” and drop the “beds”.
+
+## Model 4
+
+We further consider whether superhosts (host_is_superhost) will influence our model.
+
+```{r}
+
+model4 <-lm(log(price_4_nights)~prop_type_simplified +
+              number_of_reviews+
+              room_type+
+              bathrooms+
+              bedrooms+
+              accommodates+
+              host_is_superhost, 
+            data=regression_data)
+
+#Look at model result
+
+msummary(model4)
+
+```
+
+```{r}
+
+#Check VIF
+
+car::vif(model4)
+
+```
+
+Superhosts commands a pricing premium in Istanbul because the p-value is less htan 0.05, therefore we will keep this variable in our further models. 
+
+## Model 5
+
+Most owners advertise the exact location of their listing (is_location_exact == TRUE), while a non-trivial proportion don’t. After controlling for other variables, we consider whether a listing’s exact location can be a significant predictor of price_4_nights.
+
+```{r}
+
+model5 <-lm(log(price_4_nights)~prop_type_simplified +
+              number_of_reviews+
+              room_type+
+              bathrooms+
+              bedrooms+
+              accommodates+
+              host_is_superhost+
+              is_location_exact,
+            data=regression_data)
+
+#Look at model result
+
+msummary(model5)
+
+```
+
+```{r}
+
+#Check VIF
+
+car::vif(model5)
+
+```
+
+The variable “is_location_exact” can be a relatively significant factor because its p-value is also less than 0.05, although adding it has few influences on the adjusted R sqaure. And we can keep it.
+
+## Model 6
+
+Now we consider the effect of cancellation_policy on price_4_nights, after we control for other variables.
+
+```{r}
+
+model6 <-lm(log(price_4_nights)~prop_type_simplified +
+              number_of_reviews+
+              room_type+
+              bathrooms+
+              bedrooms+
+              accommodates+
+              host_is_superhost+
+              is_location_exact+
+              cancellation_policy,
+            data=regression_data)
+
+#Look at model result
+
+msummary(model6)
+
+```
+
+```{r}
+
+#Check VIF
+
+car::vif(model6)
+
+```
+
+The cancellation policy of 14 days and 30 days seems to have a significant impact on the price for 4 nights. This is why we will keep the variable “cancellation policy” in our model. Our Adjusted R-squared again went up a little bit as well. Let us keep trying adding more variables that may turn out significant for our model.
+
+## Model 7
+
+Finally, we consider whether neighbourhoods will affect our model.
+
+```{r} 
+
+model7 <-lm(log(price_4_nights)~prop_type_simplified +
+              number_of_reviews+
+              room_type+
+              bathrooms+
+              bedrooms+
+              accommodates+
+              host_is_superhost+
+              is_location_exact+
+              cancellation_policy+
+              neighbourhood_group_cleaned,
+            data=regression_data)
+
+#Look at model result
+
+msummary(model7)
+
+```
+
+```{r}
+
+#Check VIF
+
+car::vif(model7)
+
+```
+
+The region of Istanbul has a significant influence on the price. p-value is nearly to zero and our adjusted R-squared goes up - it suggests that model 7 better describes the real data than our previous models.
+
+# Diagnostics
+
+## Check residuals
+
+In the next step we will plot residuals, analyze their behaviour and check whether they are distributed within the norms. Afterwards, we will compare all the models and compare how our models evolved.
+
+```{r}
+
+#plot residuals
+
+autoplot(model1)
+autoplot(model2)
+autoplot(model3)
+autoplot(model4)
+autoplot(model5)
+autoplot(model6)
+autoplot(model7)
+
+```
+
+## Compare different models
+
+```{r}
+
+#compare significance of variables among model iterations
+
+huxreg(model1,
+       model2,
+       model3,
+       model4,
+       model5,
+       model6,
+       model7)
+
+```
 
 
-# Deliverables
+From the table above, we find that model7 is the better model. We use broom::tidy() and broom::glance() to get more about the model.
 
-As usual, there is a lot of explanatory text, comments, etc. You do not need these, so delete them and produce a stand-alone document that you could share with someone. Knit the edited and completed R Markdown file as an HTML document (use the "Knit" button at the top of the script editor window) and upload it to Canvas.
+```{r}
+
+model7 %>% 
+  broom::tidy()
+
+```
+```{r}
+
+model7 %>% 
+  broom::glance()
+
+```
+
+
+# Prediction
+
+To predict the price for 2 people staying 4 nights in Istanbul, we need to first create a tibble that contains preferences and then feed it into our model. We have chosen 2 tourists who want to stay in an apartment with a private room, 2 bedrooms, 1 bathroom, and a moderate cancellation policy. The apartment is in European side and has 12 reviews, a rating of 96 and accommodates 2 people.
+
+```{r}
+
+#Create an imaginary situation representing the needs of our 2 tourists
+
+imaginary_Airbnb <- tibble(room_type = as.factor("Private room"), 
+                           prop_type_simplified = as.factor("Apartment"), 
+                           number_of_reviews = 12, 
+                           review_scores_rating = 96,
+                           has_breakfast = TRUE,
+                           accommodates = 2,
+                           host_is_superhost = TRUE,
+                           is_location_exact = FALSE,
+                           bedrooms = 2,
+                           bathrooms = 1,
+                           cancellation_policy = as.factor("moderate"),
+                           neighbourhood_group_cleaned = "European Side")
+
+#Predict price and prediction intervals
+
+price_predicted = exp(predict(model7, newdata = imaginary_Airbnb, interval = "prediction"))
+
+```
+
+# Conclusion
+
+Above is our final prediction for 2 people staying 4 nights in Istanbul. Our calculations show a mean for the predicted price of $821 with a lower and upper 95% confidence interval of $251 and $2693. This is a fairly reasonabe price for 4 nights in Istanbul for Airbnb accommodation.
+
+# Limitation
+
+First, regression analysis explains a linear relationship between dependent and independent variables. While we have selected the variables of our interests, we think the travel and tourism is impacted by qualitative variables as well, which may not be explainable via a regression model.
+
+Second, the data contained numerous missing values, which were mostly excluded during the cleaning of the data, reducing our initial number of observations. While we attempted to preserve the relevant information, omission of these observations may still cause errors in the model built upon the remaining observed values. Moreover, most of our variables were categorical variables and there were only a limited number of numerical values to use for the linear regression.
+
+Third, it is important to note that the information provided is as of June 2020, hence the data and our findings are profoundly skewed by the Covid-19’s impact on travel and tourism. Another aspect that should be considered is seasonality, namely this model reflects demand for Airbnbs in the month of June, however the demand and price points might fluctuate according to the time of the year depending on peak travel times such as over longer holidays that bring and inflow of tourism.
+
+Lastly, the reliability and accuracy of our source for the raw data is also questionable, given that the data was extracted from the website insideairbnb.com, which is an unaccounted for and unknown author.
 
 # Details
 
-- Who did you collaborate with: Arun Afzali, Blanche Lelouvier, Cathy Gu, Elia Waidele
-- Approximately how much time did you spend on this problem set: ANSWER HERE
-- What, if anything, gave you the most trouble: ANSWER HERE
-
-
-**Please seek out help when you need it,** and remember the [15-minute rule](https://mam2021.netlify.app/syllabus/#the-15-minute-rule){target=_blank}. You know enough R (and have enough examples of code from class and your readings) to be able to do this. If you get stuck, ask for help from others, post a question on Slack-- and remember that I am here to help too!  
-
-> As a true test to yourself, do you understand the code you submitted and are you able to explain it to someone else? 
-
-
-# Rubric
-
-Check minus (1/5): Displays minimal effort. Doesn't complete all components. Code is poorly written and not documented. Uses the same type of plot for each graph, or doesn't use plots appropriate for the variables being analyzed. 
-
-Check (3/5): Solid effort. Hits all the elements. No clear mistakes. Easy to follow (both the code and the output). 
-
-Check plus (5/5): Finished all components of the assignment correctly and addressed both challenges. Code is well-documented (both self-documented and with additional comments as necessary). Used tidyverse, instead of base R. Graphs and tables are properly labelled. Analysis is clear and easy to follow, either because graphs are labeled clearly or you've written additional text to describe how you interpret the output.
+- Team members: Arun Afzali, Blanche Lelouvier, Yuanmeng (Cathy) Gu, Elia Waidele, Ismaeel Haq
+- What, if anything, gave you the most trouble: select variables of interest, deal with neighbourhood_group_clean, find the best model
