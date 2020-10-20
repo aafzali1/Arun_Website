@@ -71,11 +71,16 @@ disqusShortname = ""
     
 
     [[params.tiles.showcase]]
-     title = "Project 1: Airbnb"
-      subtitle = "A model that predicts the price of 4 night roomstay in Istanbul"
+     title = "Project 1: Homework 3"
+      subtitle = "Solutions to Homework 3"
       image = "pic01.jpg"
       url = "projects/project1"
       
+      [[params.tiles.showcase]]
+     title = "Project 2: Airbnb"
+      subtitle = "A model that predicts the price of 4 night roomstay in Istanbul"
+      image = "pic02.jpg"
+      url = "projects/project2"
 
 
   [params.blog]
