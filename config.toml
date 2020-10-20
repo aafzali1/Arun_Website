@@ -74,7 +74,7 @@ disqusShortname = ""
      title = "Project 1: Airbnb"
       subtitle = "A model that predicts the price of 4 night roomstay in Istanbul"
       image = "pic01.jpg"
-      url = "Projects/Project 1"
+      url = "projects/project1"
       
 
 
